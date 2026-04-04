@@ -10,6 +10,18 @@ if (typeof NadJsControl !== 'undefined') {
 } else {
     console.log('NadJsControl not available');
 }
+
+if (typeof window.login !== 'undefined') {
+    console.log('Login bridge available');
+    // 触发登录流程（参数需根据实际枚举值调整）
+    window.login.startLogin(0);
+    // 复制敏感信息
+    window.login.copyText("sensitive_data");
+    // 尝试分享
+    window.login.shareContent("malicious content");
+} else {
+    console.log('Login bridge not available');
+}
 </script>
 </body>
 </html>
