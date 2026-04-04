@@ -2,49 +2,134 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>JSB 测试</title>
+    <title>Login JSB 测试</title>
     <style>
-        body { font-size: 24px; padding: 20px; }
+        body { font-size: 16px; padding: 20px; }
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; }
+        .result { margin: 10px 0; padding: 10px; background: #f0f0f0; }
         .success { color: green; }
         .error { color: red; }
     </style>
 </head>
 <body>
-    <h1>JSB 接口测试结果</h1>
-    <div id="result"></div>
+    <h1>Login JSB 接口测试</h1>
+    <div id="info">检测 login 对象...</div>
+    
+    <hr>
+    <h2>1. startLogin(int)</h2>
+    <p>参数: 0=默认登录, 1=百度, 2=短信, 3=微信, 4=微博</p>
+    <button onclick="testStartLogin(0)">默认登录(0)</button>
+    <button onclick="testStartLogin(1)">百度登录(1)</button>
+    <button onclick="testStartLogin(2)">短信登录(2)</button>
+    <button onclick="testStartLogin(3)">微信登录(3)</button>
+    <button onclick="testStartLogin(4)">微博登录(4)</button>
+    
+    <hr>
+    <h2>2. copyText(String)</h2>
+    <input type="text" id="copyInput" value="测试复制内容" style="width:300px;height:30px;">
+    <button onclick="testCopyText()">复制文本</button>
+    
+    <hr>
+    <h2>3. shareContent(int, String, String, String, String)</h2>
+    <input type="text" id="shareType" value="0" style="width:50px;"> 分享类型(0-5)<br><br>
+    <input type="text" id="shareUrl" value="https://example.com" style="width:300px;height:30px;"><br>
+    <input type="text" id="shareTitle" value="测试标题" style="width:300px;height:30px;"><br>
+    <input type="text" id="shareImg" value="https://example.com/img.png" style="width:300px;height:30px;"><br>
+    <input type="text" id="shareSummary" value="测试摘要" style="width:300px;height:30px;"><br>
+    <button onclick="testShareContent()">分享</button>
+    
+    <hr>
+    <h2>4. joinQQGroup(String)</h2>
+    <input type="text" id="qqGroup" value="abc123" style="width:200px;height:30px;"> QQ群号
+    <button onclick="testJoinQQGroup()">加入QQ群</button>
+    
+    <hr>
+    <h2>执行结果</h2>
+    <div id="results"></div>
     
     <script>
-    // 立即执行，不需点击
     var html = '';
     
-    // 1. pageType
-    try {
-        var pt = NadJsControl.pageType();
-        html += '<p class="success">✅ pageType() = ' + pt + '</p>';
-    } catch(e) {
-        html += '<p class="error">❌ pageType() = ' + e.message + '</p>';
+    // 检测 login 对象
+    if (typeof window.login !== 'undefined') {
+        html += '<div class="success">✅ window.login 对象存在</div>';
+        html += '<div>startLogin: ' + typeof window.login.startLogin + '</div>';
+        html += '<div>copyText: ' + typeof window.login.copyText + '</div>';
+        html += '<div>shareContent: ' + typeof window.login.shareContent + '</div>';
+        html += '<div>joinQQGroup: ' + typeof window.login.joinQQGroup + '</div>';
+    } else {
+        html += '<div class="error">❌ window.login 不可用</div>';
+    }
+    document.getElementById('info').innerHTML = html;
+    
+    function logResult(title, result) {
+        var results = document.getElementById('results');
+        var div = document.createElement('div');
+        div.className = 'result';
+        
+        var content = '<b>' + title + '</b><br>';
+        if (result === undefined) {
+            content += '返回值: <span class="success">undefined (执行成功，无返回值)</span>';
+        } else if (result === null) {
+            content += '返回值: null (执行成功)';
+        } else {
+            content += '返回值: <span class="val">' + result + '</span> (类型: ' + typeof result + ')';
+        }
+        
+        div.innerHTML = content;
+        results.insertBefore(div, results.firstChild);
+        
+        // 同时 alert 显示
+        alert(title + '\n返回值: ' + result);
     }
     
-    // 2. getSysHeight
-    try {
-        var h = NadJsControl.getSysHeight();
-        html += '<p class="success">✅ getSysHeight() = "' + h + '"</p>';
-    } catch(e) {
-        html += '<p class="error">❌ getSysHeight() = ' + e.message + '</p>';
+    // 1. startLogin
+    function testStartLogin(type) {
+        try {
+            window.login.startLogin(type);
+            logResult('startLogin(' + type + ')', undefined);
+        } catch(e) {
+            logResult('startLogin(' + type + ')', '❌ ' + e.message);
+        }
     }
     
-    // 3. getPerformanceTiming
-    try {
-        NadJsControl.getPerformanceTiming('start');
-        html += '<p class="success">✅ getPerformanceTiming("start") 执行成功</p>';
-    } catch(e) {
-        html += '<p class="error">❌ getPerformanceTiming() = ' + e.message + '</p>';
+    // 2. copyText
+    function testCopyText() {
+        var text = document.getElementById('copyInput').value;
+        try {
+            window.login.copyText(text);
+            logResult('copyText("' + text + '")', undefined);
+        } catch(e) {
+            logResult('copyText', '❌ ' + e.message);
+        }
     }
     
-    document.getElementById('result').innerHTML = html;
+    // 3. shareContent
+    function testShareContent() {
+        var type = parseInt(document.getElementById('shareType').value);
+        var url = document.getElementById('shareUrl').value;
+        var title = document.getElementById('shareTitle').value;
+        var img = document.getElementById('shareImg').value;
+        var summary = document.getElementById('shareSummary').value;
+        
+        try {
+            window.login.shareContent(type, url, title, img, summary);
+            logResult('shareContent(type=' + type + ')', undefined);
+        } catch(e) {
+            logResult('shareContent', '❌ ' + e.message);
+        }
+    }
     
-    // 强制弹出确认
-    alert("测试完成，请查看页面结果");
+    // 4. joinQQGroup
+    function testJoinQQGroup() {
+        var group = document.getElementById('qqGroup').value;
+        try {
+            var result = window.login.joinQQGroup(group);
+            logResult('joinQQGroup("' + group + '")', result);
+        } catch(e) {
+            logResult('joinQQGroup', '❌ ' + e.message);
+        }
+    }
     </script>
 </body>
 </html>
