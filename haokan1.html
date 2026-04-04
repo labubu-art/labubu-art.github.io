@@ -2,58 +2,49 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>JSB 验证</title>
+    <title>JSB 测试</title>
     <style>
-        body { font-size: 18px; padding: 20px; }
-        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
-        .val { font-weight: bold; color: blue; }
+        body { font-size: 24px; padding: 20px; }
+        .success { color: green; }
+        .error { color: red; }
     </style>
 </head>
 <body>
-    <h1> NadJsControl 返回值测试</h1>
-    <div id="results"></div>
+    <h1>JSB 接口测试结果</h1>
+    <div id="result"></div>
     
     <script>
+    // 立即执行，不需点击
     var html = '';
     
-    // 1. pageType()
-    html += '<div class="result">';
-    html += '<b>1. pageType()</b><br>';
+    // 1. pageType
     try {
-        var r1 = NadJsControl.pageType();
-        html += '返回值类型: ' + typeof r1 + '<br>';
-        html += '返回值: <span class="val">' + r1 + '</span>';
+        var pt = NadJsControl.pageType();
+        html += '<p class="success">✅ pageType() = ' + pt + '</p>';
     } catch(e) {
-        html += '❌ 错误: ' + e.message;
+        html += '<p class="error">❌ pageType() = ' + e.message + '</p>';
     }
-    html += '</div>';
     
-    // 2. getSysHeight()
-    html += '<div class="result">';
-    html += '<b>2. getSysHeight()</b><br>';
+    // 2. getSysHeight
     try {
-        var r2 = NadJsControl.getSysHeight();
-        html += '返回值类型: ' + typeof r2 + '<br>';
-        html += '返回值: <span class="val">"' + r2 + '"</span>';
-        html += '<br>长度: ' + r2.length;
+        var h = NadJsControl.getSysHeight();
+        html += '<p class="success">✅ getSysHeight() = "' + h + '"</p>';
     } catch(e) {
-        html += '❌ 错误: ' + e.message;
+        html += '<p class="error">❌ getSysHeight() = ' + e.message + '</p>';
     }
-    html += '</div>';
     
     // 3. getPerformanceTiming
-    html += '<div class="result">';
-    html += '<b>3. getPerformanceTiming("start")</b><br>';
     try {
-        var r3 = NadJsControl.getPerformanceTiming('start');
-        html += '返回值类型: ' + typeof r3 + '<br>';
-        html += '返回值: <span class="val">' + r3 + '</span>';
+        NadJsControl.getPerformanceTiming('start');
+        html += '<p class="success">✅ getPerformanceTiming("start") 执行成功</p>';
     } catch(e) {
-        html += '❌ 错误: ' + e.message;
+        html += '<p class="error">❌ getPerformanceTiming() = ' + e.message + '</p>';
     }
-    html += '</div>';
     
-    document.getElementById('results').innerHTML = html;
+    document.getElementById('result').innerHTML = html;
+    
+    // 强制弹出确认
+    alert("测试完成，请查看页面结果");
     </script>
 </body>
 </html>
