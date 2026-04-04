@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebDownload POC</title>
+</head>
+<body>
+    <h2>点击按钮触发下载</h2>
+    <button onclick="triggerDownload()">下载文件</button>
+    
+    <script>
+    function triggerDownload() {
+        var params = {
+            "type": "startdownload",
+            "url": "https://www.w3schools.com/images/w3schools_green.jpg",
+            "file_id": "poc_test_" + Date.now(),
+            "callback": "cb",
+            "ext_info": ""
+        };
+        
+        var dl = 'baiduhaokan://action/webdownload?params=' + encodeURIComponent(JSON.stringify(params));
+        alert('触发: ' + dl);
+        window.location = dl;
+    }
+    </script>
+</body>
+</html>
