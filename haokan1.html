@@ -1,27 +1,59 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <meta charset="UTF-8">
+    <title>JSB 验证</title>
+    <style>
+        body { font-size: 18px; padding: 20px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .val { font-weight: bold; color: blue; }
+    </style>
+</head>
 <body>
-<script>
-if (typeof NadJsControl !== 'undefined') {
-    console.log('NadJsControl available');
-    NadJsControl.pageType();
-    NadJsControl.getSysHeight();
-    NadJsControl.getPerformanceTiming('start');
-} else {
-    console.log('NadJsControl not available');
-}
-
-if (typeof window.login !== 'undefined') {
-    console.log('Login bridge available');
-    // 触发登录流程（参数需根据实际枚举值调整）
-    window.login.startLogin(0);
-    // 复制敏感信息
-    window.login.copyText("sensitive_data");
-    // 尝试分享
-    window.login.shareContent("malicious content");
-} else {
-    console.log('Login bridge not available');
-}
-</script>
+    <h1> NadJsControl 返回值测试</h1>
+    <div id="results"></div>
+    
+    <script>
+    var html = '';
+    
+    // 1. pageType()
+    html += '<div class="result">';
+    html += '<b>1. pageType()</b><br>';
+    try {
+        var r1 = NadJsControl.pageType();
+        html += '返回值类型: ' + typeof r1 + '<br>';
+        html += '返回值: <span class="val">' + r1 + '</span>';
+    } catch(e) {
+        html += '❌ 错误: ' + e.message;
+    }
+    html += '</div>';
+    
+    // 2. getSysHeight()
+    html += '<div class="result">';
+    html += '<b>2. getSysHeight()</b><br>';
+    try {
+        var r2 = NadJsControl.getSysHeight();
+        html += '返回值类型: ' + typeof r2 + '<br>';
+        html += '返回值: <span class="val">"' + r2 + '"</span>';
+        html += '<br>长度: ' + r2.length;
+    } catch(e) {
+        html += '❌ 错误: ' + e.message;
+    }
+    html += '</div>';
+    
+    // 3. getPerformanceTiming
+    html += '<div class="result">';
+    html += '<b>3. getPerformanceTiming("start")</b><br>';
+    try {
+        var r3 = NadJsControl.getPerformanceTiming('start');
+        html += '返回值类型: ' + typeof r3 + '<br>';
+        html += '返回值: <span class="val">' + r3 + '</span>';
+    } catch(e) {
+        html += '❌ 错误: ' + e.message;
+    }
+    html += '</div>';
+    
+    document.getElementById('results').innerHTML = html;
+    </script>
 </body>
 </html>
