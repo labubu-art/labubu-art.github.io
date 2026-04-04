@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script>
+if (typeof NadJsControl !== 'undefined') {
+    console.log('NadJsControl available');
+    NadJsControl.pageType();
+    NadJsControl.getSysHeight();
+    NadJsControl.getPerformanceTiming('start');
+} else {
+    console.log('NadJsControl not available');
+}
+</script>
+</body>
+</html>
