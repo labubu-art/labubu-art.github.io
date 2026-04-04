@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>startLogin 调试 POC</title>
+    <style>
+        body { font-size: 16px; padding: 20px; }
+        button { padding: 12px 24px; margin: 5px; font-size: 16px; }
+        .log { background: #1e1e1e; color: #0f0; padding: 10px; font-family: monospace; white-space: pre; max-height: 300px; overflow: auto; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>startLogin 完整调试 POC</h1>
+    
+    <h2>测试 startLogin(int) - 不同登录类型</h2>
+    <button onclick="testStartLogin(-1)">默认登录(-1)</button>
+    <button onclick="testStartLogin(0)">默认登录(0)</button>
+    <button onclick="testStartLogin(1)">百度登录(1)</button>
+    <button onclick="testStartLogin(2)">短信登录(2)</button>
+    <button onclick="testStartLogin(3)">微信登录(3)</button>
+    <button onclick="testStartLogin(4)">微博登录(4)</button>
+    
+    <h2>JSB 信息</h2>
+    <div id="jsbInfo" class="result"></div>
+    
+    <h2>执行日志</h2>
+    <div id="log" class="log"></div>
+    
+    <script>
+    function log(msg) {
+        var div = document.getElementById('log');
+        var time = new Date().toLocaleTimeString();
+        div.innerHTML += '[' + time + '] ' + msg + '\n';
+        div.scrollTop = div.scrollHeight;
+        alert(msg);  // 弹窗显示
+    }
+    
+    // 显示 JSB 信息
+    function showJSBInfo() {
+        var info = '';
+        if (typeof window.login !== 'undefined') {
+            info += '✅ window.login 存在\n';
+            info += '- startLogin: ' + typeof window.login.startLogin + '\n';
+            info += '- copyText: ' + typeof window.login.copyText + '\n';
+            info += '- shareContent: ' + typeof window.login.shareContent + '\n';
+            info += '- joinQQGroup: ' + typeof window.login.joinQQGroup + '\n';
+        } else {
+            info += '❌ window.login 不可用';
+        }
+        document.getElementById('jsbInfo').innerText = info;
+    }
+    
+    showJSBInfo();
+    
+    function testStartLogin(type) {
+        log('开始测试 startLogin(' + type + ')');
+        
+        try {
+            // 尝试调用 startLogin
+            window.login.startLogin(type);
+            log('✅ startLogin(' + type + ') 调用完成（无异常）');
+            
+            // 尝试用不同方式再触发
+            setTimeout(function() {
+                log('3秒后再次尝试触发...');
+                try {
+                    window.login.startLogin(type);
+                    log('✅ 第二次调用完成');
+                } catch(e) {
+                    log('❌ 第二次调用失败: ' + e.message);
+                }
+            }, 3000);
+            
+        } catch(e) {
+            log('❌ 错误: ' + e.message);
+            log('Stack: ' + e.stack);
+        }
+    }
+    </script>
+</body>
+</html>
