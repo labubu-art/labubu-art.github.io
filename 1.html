@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>WebView Permission POC</title>
+</head>
+<body>
+<h1>WebView 敏感权限调用测试</h1>
+<script>
+// 1. 获取定位
+function getLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                alert("成功获取定位：\n纬度:" + pos.coords.latitude + "\n经度:" + pos.coords.longitude);
+            },
+            err => {
+                alert("定位被拒绝或失败");
+            }
+        );
+    } else {
+        alert("设备不支持定位");
+    }
+}
+
+// 2. 调用相机/麦克风
+function getMedia() {
+    navigator.mediaDevices.getUserMedia({
+        video: true,  // 相机
+        audio: true   // 麦克风
+    }).then(stream => {
+        alert("成功获取相机 + 麦克风权限！");
+        // 可以进一步录制、上传
+    }).catch(err => {
+        alert("音视频权限获取失败：" + err.message);
+    });
+}
+
+// 自动执行
+window.onload = function() {
+    setTimeout(() => {
+        getLocation();
+        setTimeout(getMedia, 1000);
+    }, 500);
+};
+</script>
+</body>
+</html>
