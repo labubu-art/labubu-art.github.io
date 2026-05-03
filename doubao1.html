@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head><title>SRC PoC - DeepLink Chained Redirect</title></head>
+<body>
+<h1>SRC Proof of Concept - Chained Redirect</h1>
+<p>测试 fallback_url 嵌套重定向。</p>
+<a href="sslocal://webcast_lynxview?url=https://httpbin.org/status/500&fallback_url=sslocal://webcast_webview?url=https://httpbin.org/html">
+  测试: Lynx 失败后 fallback 到 WebView
+</a>
+<br><br>
+<p>若主 URL 返回 500 后自动加载 fallback URL，说明 fallback_url 未被白名单校验。</p>
+</body>
+</html>
