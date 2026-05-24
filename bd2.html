@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>百度APP JSB 安全测试工具</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 10px; }
+        .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: #3385ff; color: white; padding: 15px; text-align: center; }
+        .header h1 { margin: 0; font-size: 18px; }
+        .status-bar { padding: 10px; background: #eef; border-bottom: 1px solid #ddd; font-size: 14px; }
+        .status-item { margin-bottom: 5px; }
+        .status-ok { color: green; font-weight: bold; }
+        .status-fail { color: red; font-weight: bold; }
+        .section { padding: 15px; border-bottom: 1px solid #eee; }
+        .section-title { font-weight: bold; margin-bottom: 10px; color: #333; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button { padding: 10px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+        button:active { background: #f0f0f0; transform: scale(0.98); }
+        button.high-risk { border-color: #ff4d4f; color: #ff4d4f; }
+        button.medium-risk { border-color: #faad14; color: #faad14; }
+        #log-area { background: #2d2d2d; color: #0f0; padding: 10px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px; white-space: pre-wrap; }
+        .clear-btn { background: #ff4d4f; color: white; border: none; width: 100%; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🛡️ 百度APP JSB 测试面板</h1>
+    </div>
+
+    <!-- 状态检测区 -->
+    <div class="status-bar" id="status-bar">
+        <div class="status-item">检测中...</div>
+    </div>
+
+    <!-- 基础信息 -->
+    <div class="section">
+        <div class="section-title">📱 基础环境测试</div>
+        <div class="btn-grid">
+            <button onclick="testJSB('getAppVersion')">获取APP版本</button>
+            <button onclick="testJSB('getNetworkType')">网络类型</button>
+            <button onclick="testJSB('getDeviceInfo')">设备信息</button>
+            <button onclick="testJSB('getUniqueId')" class="high-risk">唯一标识(OAID)</button>
+        </div>
+    </div>
+
+    <!-- 账号与隐私 -->
+    <div class="section">
+        <div class="section-title">👤 账号与隐私 (高危)</div>
+        <div class="btn-grid">
+            <button onclick="testJSB('getLoginStatus')">登录状态</button>
+            <button onclick="testJSB('getUserInfo')" class="high-risk">用户信息</button>
+            <button onclick="testJSB('getAuthCode')" class="high-risk">Auth Code</button>
+            <button onclick="testJSB('getLocation')" class="medium-risk">地理位置</button>
+        </div>
+    </div>
+
+    <!-- 剪贴板与文件 -->
+    <div class="section">
+        <div class="section-title">📋 剪贴板与文件</div>
+        <div class="btn-grid">
+            <button onclick="testJSB('clipboardRead')" class="high-risk">读取剪贴板</button>
+            <button onclick="testJSB('clipboardWrite')">写入剪贴板</button>
+            <button onclick="testJSB('chooseImage')">选择图片</button>
+            <button onclick="testJSB('scanQRCode')">扫码</button>
+        </div>
+    </div>
+
+    <!-- 日志输出 -->
+    <div class="section">
+        <div class="section-title">📜 执行日志</div>
+        <div id="log-area">等待操作...</div>
+        <button class="clear-btn" onclick="document.getElementById('log-area').innerHTML=''">清空日志</button>
+    </div>
+</div>
+
+<script>
+    // 全局变量
+    var bridge = null;
+    var bridgeName = '';
+    var logArea = document.getElementById('log-area');
+    var statusBar = document.getElementById('status-bar');
+
+    // 日志函数
+    function log(msg, type = 'info') {
+        var time = new Date().toLocaleTimeString();
+        var color = type === 'error' ? '#ff4d4f' : (type === 'success' ? '#0f0' : '#ccc');
+        logArea.innerHTML += `<span style="color:#888">[${time}]</span> <span style="color:${color}">${msg}</span>\n`;
+        logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    // 初始化检测
+    function init() {
+        log("开始检测 JSBridge 环境...");
+        
+        // 1. 检测常见的 Bridge 对象
+        const candidates = ['Bridge', 'baiduBox', 'WebViewJavascriptBridge', 'BaiduJSBridge', 'jsBridge'];
+        
+        for (let name of candidates) {
+            if (window[name]) {
+                bridge = window[name];
+                bridgeName = name;
+                log(`✅ 发现 JSBridge 对象: window.${name}`, 'success');
+                break;
+            }
+        }
+
+        if (!bridge) {
+            log("❌ 未检测到 JSBridge 对象。可能不在百度APP内，或版本过新/过旧。", 'error');
+            statusBar.innerHTML = '<div class="status-item">状态: <span class="status-fail">未找到 Bridge</span></div>';
+            return;
+        }
+
+        // 2. 显示状态
+        statusBar.innerHTML = `
+            <div class="status-item">Bridge 对象: <span class="status-ok">window.${bridgeName}</span></div>
+            <div class="status-item">可用方法数: <span class="status-ok">${Object.keys(bridge).length}</span></div>
+        `;
+
+        // 3. 自动枚举所有方法
+        log("--- 枚举所有可用方法 ---");
+        for (let key in bridge) {
+            if (typeof bridge[key] === 'function') {
+                log(`  - ${key}`);
+            }
+        }
+    }
+
+    // 通用调用函数
+    function testJSB(action) {
+        if (!bridge) {
+            log("❌ Bridge 未初始化", 'error');
+            return;
+        }
+
+        log(`🚀 尝试调用: ${action}...`);
+
+        let params = {};
+        
+        // 根据不同动作构造参数
+        switch(action) {
+            case 'clipboardWrite':
+                params = { text: 'JSB Test Payload ' + Date.now() };
+                break;
+            case 'openUrl':
+                params = { url: 'https://www.baidu.com' };
+                break;
+            case 'showToast':
+                params = { message: 'Test Toast' };
+                break;
+            case 'getLocation':
+                params = { type: 'wgs84' };
+                break;
+            default:
+                params = {};
+        }
+
+        // 执行调用
+        try {
+            // 注意：不同版本的百度APP callHandler 签名可能略有不同
+            // 常见签名: callHandler(methodName, params, callback)
+            bridge.callHandler(action, params, function(response) {
+                log(`✅ [${action}] 响应:`, 'success');
+                log(JSON.stringify(response, null, 2));
+            });
+        } catch (e) {
+            log(`❌ [${action}] 调用异常: ${e.message}`, 'error');
+        }
+    }
+
+    // 页面加载完成后初始化
+    window.onload = init;
+    
+    // 兼容某些需要手动触发初始化的 Bridge
+    if (window.WebViewJavascriptBridge && WebViewJavascriptBridge.init) {
+        WebViewJavascriptBridge.init(function(message, responseCallback) {
+            log('Bridge Initialized via init()');
+        });
+    }
+</script>
+
+</body>
+</html>
