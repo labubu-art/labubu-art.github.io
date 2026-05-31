@@ -1,0 +1,43 @@
+<html>
+<body>
+  window.Bdbox_android_net.request测试
+</body>
+<script>
+function bdNetCallback(res) {
+  console.log('[bdNetCallback]', res);
+  document.body.innerText = JSON.stringify({
+    errno: res && res.errno,
+    errmsg: res && res.errmsg,
+    dataPreview: String(res && res.data || '').slice(0, 500),
+    dataLength: String(res && res.data || '').length
+  }, null, 2);
+}
+
+function callBdNet(url, data = {}, header = {}) {
+  const params = {
+    url,
+    method: 'get',
+    data: JSON.stringify(data),
+    header: JSON.stringify(header),
+    cache: '0',
+    refresh: '0',
+    pu: '0'
+  };
+
+  window.Bdbox_android_net.request(
+    JSON.stringify(params),
+    'bdNetCallback'
+  );
+}
+
+callBdNet('https://your-controlled-domain.example/echo', {}, {
+  'X-Test': 'bd-net-request'
+});
+
+callBdNet('https://www.baidu.com/', {}, {
+  'X-Test': 'bd-net-baidu-domain'
+});
+
+  
+</script>
+</html>
